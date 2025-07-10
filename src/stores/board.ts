@@ -39,6 +39,12 @@ export const useBoardStore = defineStore('board', () => {
     loading.value = true
     error.value = null
     
+    if (!supabase) {
+      error.value = 'Supabase not configured'
+      loading.value = false
+      return
+    }
+    
     try {
       // Load boards
       const { data: boardsData, error: boardsError } = await supabase
@@ -131,6 +137,12 @@ export const useBoardStore = defineStore('board', () => {
     loading.value = true
     error.value = null
 
+    if (!supabase) {
+      error.value = 'Supabase not configured'
+      loading.value = false
+      return
+    }
+
     try {
       const { data, error: createError } = await supabase
         .from('boards')
@@ -166,6 +178,12 @@ export const useBoardStore = defineStore('board', () => {
     loading.value = true
     error.value = null
 
+    if (!supabase) {
+      error.value = 'Supabase not configured'
+      loading.value = false
+      return
+    }
+
     try {
       const { error: updateError } = await supabase
         .from('boards')
@@ -193,6 +211,12 @@ export const useBoardStore = defineStore('board', () => {
   const deleteBoard = async (boardId: string) => {
     loading.value = true
     error.value = null
+
+    if (!supabase) {
+      error.value = 'Supabase not configured'
+      loading.value = false
+      return
+    }
 
     try {
       const { error: deleteError } = await supabase
@@ -228,6 +252,12 @@ export const useBoardStore = defineStore('board', () => {
 
     loading.value = true
     error.value = null
+
+    if (!supabase) {
+      error.value = 'Supabase not configured'
+      loading.value = false
+      return
+    }
 
     try {
       const board = boards.value.find(b => b.id === targetBoardId)
@@ -267,6 +297,12 @@ export const useBoardStore = defineStore('board', () => {
     loading.value = true
     error.value = null
 
+    if (!supabase) {
+      error.value = 'Supabase not configured'
+      loading.value = false
+      return
+    }
+
     try {
       const { error: updateError } = await supabase
         .from('lists')
@@ -296,6 +332,12 @@ export const useBoardStore = defineStore('board', () => {
   const deleteList = async (listId: string) => {
     loading.value = true
     error.value = null
+
+    if (!supabase) {
+      error.value = 'Supabase not configured'
+      loading.value = false
+      return
+    }
 
     try {
       const { error: deleteError } = await supabase
@@ -328,6 +370,12 @@ export const useBoardStore = defineStore('board', () => {
   const createCard = async (title: string, listId: string, description?: string) => {
     loading.value = true
     error.value = null
+
+    if (!supabase) {
+      error.value = 'Supabase not configured'
+      loading.value = false
+      return
+    }
 
     try {
       const list = boards.value
@@ -372,6 +420,12 @@ export const useBoardStore = defineStore('board', () => {
     loading.value = true
     error.value = null
 
+    if (!supabase) {
+      error.value = 'Supabase not configured'
+      loading.value = false
+      return
+    }
+
     try {
       const { error: updateError } = await supabase
         .from('cards')
@@ -407,6 +461,12 @@ export const useBoardStore = defineStore('board', () => {
   const deleteCard = async (cardId: string) => {
     loading.value = true
     error.value = null
+
+    if (!supabase) {
+      error.value = 'Supabase not configured'
+      loading.value = false
+      return
+    }
 
     try {
       const { error: deleteError } = await supabase
@@ -444,6 +504,12 @@ export const useBoardStore = defineStore('board', () => {
   const moveCard = async (cardId: string, fromListId: string, toListId: string, newOrder: number) => {
     loading.value = true
     error.value = null
+
+    if (!supabase) {
+      error.value = 'Supabase not configured'
+      loading.value = false
+      return
+    }
 
     try {
       const { error: updateError } = await supabase
@@ -492,6 +558,12 @@ export const useBoardStore = defineStore('board', () => {
     loading.value = true
     error.value = null
 
+    if (!supabase) {
+      error.value = 'Supabase not configured'
+      loading.value = false
+      return
+    }
+
     try {
       const { error: updateError } = await supabase
         .from('lists')
@@ -524,6 +596,8 @@ export const useBoardStore = defineStore('board', () => {
 
   // Real-time updates
   const setupRealtime = () => {
+    if (!supabase) return
+    
     // Subscribe to board changes
     supabase
       .channel('boards')
