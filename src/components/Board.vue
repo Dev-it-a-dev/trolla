@@ -129,6 +129,12 @@
       @close="showCreateList = false"
       @create="createList"
     />
+
+    <!-- Real-time Status (for debugging) -->
+    <RealtimeStatus />
+    
+    <!-- Real-time Test (temporary for debugging) -->
+    <RealtimeTest />
   </div>
 </template>
 
@@ -139,6 +145,8 @@ import ListComponent from './List.vue'
 import CreateBoardModal from './CreateBoardModal.vue'
 import BoardSelectorModal from './BoardSelectorModal.vue'
 import CreateListModal from './CreateListModal.vue'
+import RealtimeStatus from './RealtimeStatus.vue'
+import RealtimeTest from './RealtimeTest.vue'
 
 const boardStore = useBoardStore()
 

@@ -121,6 +121,9 @@ export const useBoardStore = defineStore('board', () => {
 
   // Initialize store
   loadFromDatabase()
+  
+  // Debug: Log when store is initialized
+  console.log('Board store initialized')
 
   // Computed properties
   const currentBoard = computed(() => {
@@ -596,25 +599,223 @@ export const useBoardStore = defineStore('board', () => {
 
   // Real-time updates
   const setupRealtime = () => {
-    if (!supabase) return
+    if (!supabase) {
+      console.warn('Supabase not available for real-time subscriptions')
+      return
+    }
+    
+    console.log('Setting up real-time subscriptions...')
     
     // Subscribe to board changes
-    supabase
+    const channel = supabase
       .channel('boards')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'boards' }, () => {
-        loadFromDatabase()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'boards' }, async (payload) => {
+        console.log('Board change detected:', payload)
+        await handleBoardChange(payload)
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, () => {
-        loadFromDatabase()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, async (payload) => {
+        console.log('List change detected:', payload)
+        await handleListChange(payload)
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cards' }, () => {
-        loadFromDatabase()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cards' }, async (payload) => {
+        console.log('Card change detected:', payload)
+        await handleCardChange(payload)
       })
-      .subscribe()
+      .subscribe((status) => {
+        console.log('Real-time subscription status:', status)
+        if (status === 'SUBSCRIBED') {
+          console.log('Real-time subscriptions active')
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Real-time subscription error')
+        }
+      })
+    
+    return channel
+  }
+
+  // Handle real-time board changes
+  const handleBoardChange = async (payload: any) => {
+    if (!supabase) return
+    
+    const { eventType, new: newRecord, old: oldRecord } = payload
+    
+    switch (eventType) {
+      case 'INSERT':
+        // Load the new board with its lists and cards
+        const { data: newBoardData } = await supabase
+          .from('boards')
+          .select('*')
+          .eq('id', newRecord.id)
+          .single()
+        
+        if (newBoardData) {
+          const newBoard: Board = {
+            id: newBoardData.id,
+            title: newBoardData.title,
+            description: newBoardData.description,
+            createdAt: new Date(newBoardData.created_at),
+            lists: []
+          }
+          boards.value.unshift(newBoard)
+        }
+        break
+        
+      case 'UPDATE':
+        const board = boards.value.find(b => b.id === newRecord.id)
+        if (board) {
+          board.title = newRecord.title
+          board.description = newRecord.description
+        }
+        break
+        
+      case 'DELETE':
+        const index = boards.value.findIndex(b => b.id === oldRecord.id)
+        if (index !== -1) {
+          boards.value.splice(index, 1)
+          if (currentBoardId.value === oldRecord.id) {
+            currentBoardId.value = boards.value.length > 0 ? boards.value[0].id : null
+          }
+        }
+        break
+    }
+  }
+
+  // Handle real-time list changes
+  const handleListChange = async (payload: any) => {
+    if (!supabase) return
+    
+    const { eventType, new: newRecord, old: oldRecord } = payload
+    
+    switch (eventType) {
+      case 'INSERT':
+        const { data: newListData } = await supabase
+          .from('lists')
+          .select('*')
+          .eq('id', newRecord.id)
+          .single()
+        
+        if (newListData) {
+          const newList: List = {
+            id: newListData.id,
+            title: newListData.title,
+            boardId: newListData.board_id,
+            order: newListData.order,
+            cards: []
+          }
+          
+          const board = boards.value.find(b => b.id === newListData.board_id)
+          if (board) {
+            board.lists.push(newList)
+          }
+        }
+        break
+        
+      case 'UPDATE':
+        const board = boards.value.find(b => b.id === newRecord.board_id)
+        if (board) {
+          const list = board.lists.find(l => l.id === newRecord.id)
+          if (list) {
+            list.title = newRecord.title
+            list.order = newRecord.order
+          }
+        }
+        break
+        
+      case 'DELETE':
+        const targetBoard = boards.value.find(b => b.id === oldRecord.board_id)
+        if (targetBoard) {
+          const listIndex = targetBoard.lists.findIndex(l => l.id === oldRecord.id)
+          if (listIndex !== -1) {
+            targetBoard.lists.splice(listIndex, 1)
+          }
+        }
+        break
+    }
+  }
+
+  // Handle real-time card changes
+  const handleCardChange = async (payload: any) => {
+    if (!supabase) return
+    
+    const { eventType, new: newRecord, old: oldRecord } = payload
+    
+    switch (eventType) {
+      case 'INSERT':
+        const { data: newCardData } = await supabase
+          .from('cards')
+          .select('*')
+          .eq('id', newRecord.id)
+          .single()
+        
+        if (newCardData) {
+          const newCard: Card = {
+            id: newCardData.id,
+            title: newCardData.title,
+            description: newCardData.description,
+            listId: newCardData.list_id,
+            order: newCardData.order,
+            createdAt: new Date(newCardData.created_at)
+          }
+          
+          const board = boards.value.find(b => 
+            b.lists.some(l => l.id === newCardData.list_id)
+          )
+          if (board) {
+            const list = board.lists.find(l => l.id === newCardData.list_id)
+            if (list) {
+              list.cards.push(newCard)
+            }
+          }
+        }
+        break
+        
+      case 'UPDATE':
+        const board = boards.value.find(b => 
+          b.lists.some(l => l.cards.some(c => c.id === newRecord.id))
+        )
+        if (board) {
+          const list = board.lists.find(l => l.cards.some(c => c.id === newRecord.id))
+          if (list) {
+            const card = list.cards.find(c => c.id === newRecord.id)
+            if (card) {
+              card.title = newRecord.title
+              card.description = newRecord.description
+              card.order = newRecord.order
+              card.listId = newRecord.list_id
+            }
+          }
+        }
+        break
+        
+      case 'DELETE':
+        const targetBoard = boards.value.find(b => 
+          b.lists.some(l => l.cards.some(c => c.id === oldRecord.id))
+        )
+        if (targetBoard) {
+          const list = targetBoard.lists.find(l => l.cards.some(c => c.id === oldRecord.id))
+          if (list) {
+            const cardIndex = list.cards.findIndex(c => c.id === oldRecord.id)
+            if (cardIndex !== -1) {
+              list.cards.splice(cardIndex, 1)
+            }
+          }
+        }
+        break
+    }
   }
 
   // Setup real-time updates
-  setupRealtime()
+  let realtimeChannel: any = null
+  
+  const initializeRealtime = () => {
+    if (realtimeChannel) {
+      realtimeChannel.unsubscribe()
+    }
+    realtimeChannel = setupRealtime()
+  }
+  
+  // Initialize real-time when store is created
+  initializeRealtime()
 
   return {
     boards,
@@ -635,6 +836,7 @@ export const useBoardStore = defineStore('board', () => {
     deleteCard,
     moveCard,
     moveList,
-    loadFromDatabase
+    loadFromDatabase,
+    initializeRealtime
   }
 }) 
